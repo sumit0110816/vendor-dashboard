@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import {
   AreaChart,
@@ -11,7 +12,9 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-const data = [
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+const fallbackData = [
   { month: "Jan", revenue: 4000, orders: 240 },
   { month: "Feb", revenue: 3000, orders: 198 },
   { month: "Mar", revenue: 5000, orders: 300 },
@@ -52,6 +55,47 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 export function SalesChart() {
+  const [chartData, setChartData] = useState(fallbackData)
+
+  useEffect(() => {
+    fetch("/api/orders")
+      .then(res => res.json())
+      .then((orders: any[]) => {
+        if (!orders || orders.length === 0) return
+
+        // Build month-wise aggregation from real order data
+        const monthMap: Record<string, { revenue: number; orders: number }> = {}
+        months.forEach(m => { monthMap[m] = { revenue: 0, orders: 0 } })
+
+        orders.forEach(order => {
+          if (!order.date) return
+          const dateObj = new Date(order.date)
+          const monthIndex = dateObj.getMonth()
+          const monthName = months[monthIndex]
+          if (monthMap[monthName]) {
+            monthMap[monthName].revenue += order.total || 0
+            monthMap[monthName].orders += 1
+          }
+        })
+
+        // Check if we have any real data
+        const hasRealData = Object.values(monthMap).some(v => v.revenue > 0)
+
+        if (hasRealData) {
+          // Merge: use real data for months that have it, keep fallback for months without
+          const merged = months.map((m, i) => ({
+            month: m,
+            revenue: monthMap[m].revenue > 0 ? monthMap[m].revenue : fallbackData[i].revenue,
+            orders: monthMap[m].orders > 0 ? monthMap[m].orders : fallbackData[i].orders,
+          }))
+          setChartData(merged)
+        }
+      })
+      .catch(() => {
+        // Keep fallback data on error
+      })
+  }, [])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -78,7 +122,7 @@ export function SalesChart() {
       
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="oklch(0.45 0.15 250)" stopOpacity={0.2} />

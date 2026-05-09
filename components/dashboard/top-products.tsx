@@ -5,7 +5,7 @@ import { TrendingUp } from "lucide-react"
 
 import { useState, useEffect } from "react"
 
-export function TopProducts() {
+export function TopProducts({ onTabChange }: { onTabChange?: (tab: string) => void }) {
   const [products, setProducts] = useState<any[]>([])
 
   useEffect(() => {
@@ -24,7 +24,10 @@ export function TopProducts() {
           <h3 className="text-lg font-semibold text-foreground">Top Products</h3>
           <p className="text-sm text-muted-foreground mt-1">Best selling items this month</p>
         </div>
-        <button className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+        <button
+          onClick={() => onTabChange?.("products")}
+          className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+        >
           View All
         </button>
       </div>

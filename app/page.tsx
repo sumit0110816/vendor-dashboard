@@ -12,7 +12,7 @@ import { MarketingModule } from "@/components/dashboard/modules/marketing"
 import { WalletModule } from "@/components/dashboard/modules/wallet"
 import { SettingsModule } from "@/components/dashboard/modules/settings"
 
-const modules: Record<string, React.ComponentType> = {
+const modules: Record<string, React.ComponentType<any>> = {
   overview: OverviewModule,
   products: ProductsModule,
   orders: OrdersModule,
@@ -48,7 +48,7 @@ export default function VendorDashboard() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <ActiveModule />
+              <ActiveModule onTabChange={setActiveTab} />
             </motion.div>
           </AnimatePresence>
         </div>

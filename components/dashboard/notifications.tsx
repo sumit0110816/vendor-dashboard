@@ -1,10 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { AlertTriangle, Package, ShoppingCart, Star, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const notifications = [
+const initialNotifications = [
   {
     id: 1,
     type: "order",
@@ -14,6 +15,7 @@ const notifications = [
     icon: ShoppingCart,
     color: "text-success",
     bgColor: "bg-success/10",
+    unread: true,
   },
   {
     id: 2,
@@ -24,6 +26,7 @@ const notifications = [
     icon: AlertTriangle,
     color: "text-warning",
     bgColor: "bg-warning/10",
+    unread: true,
   },
   {
     id: 3,
@@ -34,6 +37,7 @@ const notifications = [
     icon: Star,
     color: "text-primary",
     bgColor: "bg-primary/10",
+    unread: true,
   },
   {
     id: 4,
@@ -44,10 +48,23 @@ const notifications = [
     icon: Package,
     color: "text-info",
     bgColor: "bg-info/10",
+    unread: true,
   },
 ]
 
 export function Notifications() {
+  const [notifications, setNotifications] = useState(initialNotifications)
+
+  const unreadCount = notifications.filter(n => n.unread).length
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
+  }
+
+  const markOneRead = (id: number) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n))
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -57,17 +74,27 @@ export function Notifications() {
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-primary/10">
+          <div className="p-2 rounded-xl bg-primary/10 relative">
             <Bell className="w-5 h-5 text-primary" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground rounded-full text-[10px] flex items-center justify-center font-bold">
+                {unreadCount}
+              </span>
+            )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-foreground">Notifications</h3>
             <p className="text-sm text-muted-foreground">Stay updated with alerts</p>
           </div>
         </div>
-        <button className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
-          Mark all read
-        </button>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+          >
+            Mark all read
+          </button>
+        )}
       </div>
       
       <div className="space-y-3">
@@ -81,7 +108,11 @@ export function Notifications() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 * index }}
               whileHover={{ scale: 1.01 }}
-              className="flex items-start gap-3 p-3 rounded-lg hover:bg-secondary transition-all cursor-pointer"
+              onClick={() => markOneRead(notification.id)}
+              className={cn(
+                "flex items-start gap-3 p-3 rounded-lg hover:bg-secondary transition-all cursor-pointer",
+                !notification.unread && "opacity-60"
+              )}
             >
               <div className={cn("p-2 rounded-lg flex-shrink-0", notification.bgColor)}>
                 <Icon className={cn("w-4 h-4", notification.color)} />
@@ -91,7 +122,9 @@ export function Notifications() {
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{notification.message}</p>
                 <p className="text-xs text-muted-foreground/70 mt-1">{notification.time}</p>
               </div>
-              <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+              {notification.unread && (
+                <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+              )}
             </motion.div>
           )
         })}

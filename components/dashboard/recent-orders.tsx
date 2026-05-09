@@ -13,7 +13,7 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
   pending: { bg: "bg-warning/10", text: "text-warning" },
 }
 
-export function RecentOrders() {
+export function RecentOrders({ onTabChange }: { onTabChange?: (tab: string) => void }) {
   const [orders, setOrders] = useState<any[]>([])
 
   useEffect(() => {
@@ -32,7 +32,10 @@ export function RecentOrders() {
           <h3 className="text-lg font-semibold text-foreground">Recent Orders</h3>
           <p className="text-sm text-muted-foreground mt-1">Latest customer orders</p>
         </div>
-        <button className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+        <button
+          onClick={() => onTabChange?.("orders")}
+          className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+        >
           View All
         </button>
       </div>

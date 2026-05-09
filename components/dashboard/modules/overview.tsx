@@ -7,7 +7,11 @@ import { RecentOrders } from "../recent-orders"
 import { Notifications } from "../notifications"
 import { TopProducts } from "../top-products"
 
-export function OverviewModule() {
+interface OverviewModuleProps {
+  onTabChange?: (tab: string) => void
+}
+
+export function OverviewModule({ onTabChange }: OverviewModuleProps) {
   return (
     <div className="space-y-6">
       <Header
@@ -28,10 +32,10 @@ export function OverviewModule() {
       
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          <RecentOrders />
+          <RecentOrders onTabChange={onTabChange} />
         </div>
         <div>
-          <TopProducts />
+          <TopProducts onTabChange={onTabChange} />
         </div>
       </div>
     </div>
