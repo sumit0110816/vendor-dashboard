@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plus,
@@ -12,99 +12,14 @@ import {
   Calendar,
   Copy,
   MoreHorizontal,
-  Eye,
   Edit,
   Trash2,
   X,
+  TrendingUp,
 } from "lucide-react"
 import { Header } from "../header"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-
-const coupons = [
-  {
-    id: 1,
-    code: "SUMMER25",
-    discount: "25%",
-    type: "percentage",
-    usageLimit: 100,
-    used: 67,
-    expiresAt: "Jun 30, 2024",
-    status: "active",
-  },
-  {
-    id: 2,
-    code: "FLAT50",
-    discount: "₹50",
-    type: "fixed",
-    usageLimit: 50,
-    used: 42,
-    expiresAt: "May 15, 2024",
-    status: "active",
-  },
-  {
-    id: 3,
-    code: "WELCOME10",
-    discount: "10%",
-    type: "percentage",
-    usageLimit: 500,
-    used: 234,
-    expiresAt: "Dec 31, 2024",
-    status: "active",
-  },
-  {
-    id: 4,
-    code: "FLASH20",
-    discount: "20%",
-    type: "percentage",
-    usageLimit: 200,
-    used: 200,
-    expiresAt: "Apr 1, 2024",
-    status: "expired",
-  },
-]
-
-const flashSales = [
-  {
-    id: 1,
-    name: "Weekend Flash Sale",
-    discount: "30% off",
-    products: 24,
-    startDate: "Jan 20, 2024",
-    endDate: "Jan 22, 2024",
-    status: "scheduled",
-  },
-  {
-    id: 2,
-    name: "Electronics Clearance",
-    discount: "40% off",
-    products: 12,
-    startDate: "Jan 15, 2024",
-    endDate: "Jan 18, 2024",
-    status: "active",
-  },
-]
-
-const campaigns = [
-  {
-    id: 1,
-    name: "New Year Sale Campaign",
-    type: "email",
-    sent: 2500,
-    opened: 1250,
-    clicked: 375,
-    status: "completed",
-  },
-  {
-    id: 2,
-    name: "Product Launch SMS",
-    type: "sms",
-    sent: 1800,
-    opened: 1620,
-    clicked: 486,
-    status: "active",
-  },
-]
 
 const statusConfig = {
   active: { label: "Active", bg: "bg-success/10", text: "text-success" },
@@ -113,9 +28,93 @@ const statusConfig = {
   completed: { label: "Completed", bg: "bg-primary/10", text: "text-primary" },
 }
 
-export function MarketingModule() {
+interface MarketingModuleProps {
+  onTabChange?: (tab: string) => void
+}
+
+export function MarketingModule({ onTabChange }: MarketingModuleProps) {
   const [activeTab, setActiveTab] = useState<"coupons" | "flash" | "campaigns">("coupons")
   const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  const [coupons, setCoupons] = useState<any[]>([])
+  const [flashSales, setFlashSales] = useState<any[]>([])
+  const [campaigns, setCampaigns] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [formData, setFormData] = useState<any>({
+    code: "",
+    discount: "",
+    type: "percentage",
+    usageLimit: 100,
+    expiresAt: "",
+    name: "",
+    products: 0,
+    startDate: "",
+    endDate: ""
+  })
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [couponsRes, flashRes, campaignsRes] = await Promise.all([
+        fetch("/api/coupons"),
+        fetch("/api/flash-sales"),
+        fetch("/api/campaigns")
+      ])
+      setCoupons(await couponsRes.json())
+      setFlashSales(await flashRes.json())
+      setCampaigns(await campaignsRes.json())
+    } catch (err) {
+      console.error("Marketing fetch failed", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreate = async () => {
+    const endpoint = activeTab === "coupons" ? "/api/coupons" : 
+                     activeTab === "flash" ? "/api/flash-sales" : "/api/campaigns"
+    
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      })
+      if (res.ok) {
+        setShowCreateModal(false)
+        fetchData()
+        setFormData({ code: "", discount: "", type: "percentage", usageLimit: 100, expiresAt: "", name: "", products: 0, startDate: "", endDate: "" })
+      }
+    } catch (err) {
+      console.error("Creation failed", err)
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    const endpoint = activeTab === "coupons" ? `/api/coupons?id=${id}` : 
+                     activeTab === "flash" ? `/api/flash-sales?id=${id}` : `/api/campaigns?id=${id}`
+    
+    if (!confirm("Are you sure you want to delete this?")) return
+
+    try {
+      const res = await fetch(endpoint, { method: "DELETE" })
+      if (res.ok) fetchData()
+    } catch (err) {
+      console.error("Deletion failed", err)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    alert(`Copied ${text} to clipboard!`)
+  }
+
+  const totalReach = campaigns.reduce((acc, c) => acc + (c.sent || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -124,10 +123,10 @@ export function MarketingModule() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { label: "Active Coupons", value: "12", icon: Tag, color: "text-primary" },
-          { label: "Flash Sales", value: "3", icon: Zap, color: "text-warning" },
-          { label: "Active Campaigns", value: "5", icon: Megaphone, color: "text-info" },
-          { label: "Total Reach", value: "45.2K", icon: Mail, color: "text-success" },
+          { label: "Active Coupons", value: coupons.filter(c => c.status === 'active').length, icon: Tag, color: "text-primary" },
+          { label: "Flash Sales", value: flashSales.length, icon: Zap, color: "text-warning" },
+          { label: "Active Campaigns", value: campaigns.filter(c => c.status === 'active').length, icon: Megaphone, color: "text-info" },
+          { label: "Total Reach", value: totalReach >= 1000 ? `${(totalReach/1000).toFixed(1)}K` : totalReach, icon: Mail, color: "text-success" },
         ].map((stat) => (
           <motion.div
             key={stat.label}
@@ -169,203 +168,240 @@ export function MarketingModule() {
             </button>
           ))}
         </div>
-        <Button className="gap-2 rounded-xl" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4" />
-          Create New
-        </Button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => onTabChange?.('analytics')}
+            className="text-sm flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <TrendingUp className="w-4 h-4" />
+            View Analytics
+          </button>
+          <Button className="gap-2 rounded-xl" onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4" />
+            Create New
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
-      <AnimatePresence mode="wait">
-        {activeTab === "coupons" && (
-          <motion.div
-            key="coupons"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            {coupons.map((coupon, index) => (
-              <motion.div
-                key={coupon.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="pro-card rounded-xl p-5"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-primary/10">
-                      <Percent className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-foreground">{coupon.code}</span>
-                        <button className="p-1 rounded hover:bg-secondary/50 transition-colors">
-                          <Copy className="w-3 h-3 text-muted-foreground" />
-                        </button>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          {activeTab === "coupons" && (
+            <motion.div
+              key="coupons"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              {coupons.map((coupon, index) => (
+                <motion.div
+                  key={coupon.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="pro-card rounded-xl p-5"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-primary/10">
+                        <Percent className="w-5 h-5 text-primary" />
                       </div>
-                      <p className="text-sm text-muted-foreground">{coupon.discount} off</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-foreground">{coupon.code}</span>
+                          <button 
+                            onClick={() => copyToClipboard(coupon.code)}
+                            className="p-1 rounded hover:bg-secondary/50 transition-colors"
+                          >
+                            <Copy className="w-3 h-3 text-muted-foreground" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{coupon.discount} off</p>
+                      </div>
                     </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-medium",
-                      statusConfig[coupon.status as keyof typeof statusConfig].bg,
-                      statusConfig[coupon.status as keyof typeof statusConfig].text
-                    )}
-                  >
-                    {statusConfig[coupon.status as keyof typeof statusConfig].label}
-                  </span>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                    <span>Usage: {coupon.used}/{coupon.usageLimit}</span>
-                    <span>{Math.round((coupon.used / coupon.usageLimit) * 100)}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${(coupon.used / coupon.usageLimit) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="w-3 h-3" />
-                    Expires: {coupon.expiresAt}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 rounded-lg hover:bg-secondary/50 transition-colors">
-                      <Edit className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <button className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-
-        {activeTab === "flash" && (
-          <motion.div
-            key="flash"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            {flashSales.map((sale, index) => (
-              <motion.div
-                key={sale.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="pro-card rounded-xl p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-warning/10">
-                      <Zap className="w-6 h-6 text-warning" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{sale.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {sale.discount} on {sale.products} products
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
                     <span
                       className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium",
-                        statusConfig[sale.status as keyof typeof statusConfig].bg,
-                        statusConfig[sale.status as keyof typeof statusConfig].text
+                        statusConfig[coupon.status as keyof typeof statusConfig]?.bg,
+                        statusConfig[coupon.status as keyof typeof statusConfig]?.text
                       )}
                     >
-                      {statusConfig[sale.status as keyof typeof statusConfig].label}
+                      {statusConfig[coupon.status as keyof typeof statusConfig]?.label || 'Active'}
                     </span>
-                    <button className="p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-                      <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {sale.startDate} - {sale.endDate}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
 
-        {activeTab === "campaigns" && (
-          <motion.div
-            key="campaigns"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            {campaigns.map((campaign, index) => (
-              <motion.div
-                key={campaign.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="pro-card rounded-xl p-5"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "p-3 rounded-xl",
-                      campaign.type === "email" ? "bg-info/10" : "bg-success/10"
-                    )}>
-                      <Mail className={cn(
-                        "w-6 h-6",
-                        campaign.type === "email" ? "text-info" : "text-success"
-                      )} />
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span>Usage: {coupon.used}/{coupon.usageLimit}</span>
+                      <span>{Math.round((coupon.used / coupon.usageLimit) * 100)}%</span>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{campaign.name}</h3>
-                      <p className="text-sm text-muted-foreground capitalize">{campaign.type} Campaign</p>
+                    <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all"
+                        style={{ width: `${(coupon.used / coupon.usageLimit) * 100}%` }}
+                      />
                     </div>
                   </div>
-                  <span
-                    className={cn(
-                      "px-2.5 py-1 rounded-full text-xs font-medium",
-                      statusConfig[campaign.status as keyof typeof statusConfig].bg,
-                      statusConfig[campaign.status as keyof typeof statusConfig].text
-                    )}
-                  >
-                    {statusConfig[campaign.status as keyof typeof statusConfig].label}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-3 rounded-xl bg-secondary/30 text-center">
-                    <p className="text-lg font-bold text-foreground">{campaign.sent.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Sent</p>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      Expires: {coupon.expiresAt}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => handleDelete(coupon.id)}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-secondary/30 text-center">
-                    <p className="text-lg font-bold text-foreground">{campaign.opened.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Opened ({Math.round((campaign.opened / campaign.sent) * 100)}%)</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {activeTab === "flash" && (
+            <motion.div
+              key="flash"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4"
+            >
+              {flashSales.map((sale, index) => (
+                <motion.div
+                  key={sale.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="pro-card rounded-xl p-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-warning/10">
+                        <Zap className="w-6 h-6 text-warning" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{sale.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {sale.discount} on {sale.products} products
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-xs font-medium",
+                          statusConfig[sale.status as keyof typeof statusConfig]?.bg,
+                          statusConfig[sale.status as keyof typeof statusConfig]?.text
+                        )}
+                      >
+                        {statusConfig[sale.status as keyof typeof statusConfig]?.label || 'Active'}
+                      </span>
+                      <button 
+                        onClick={() => handleDelete(sale.id)}
+                        className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-secondary/30 text-center">
-                    <p className="text-lg font-bold text-foreground">{campaign.clicked.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Clicked ({Math.round((campaign.clicked / campaign.sent) * 100)}%)</p>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      {sale.startDate} - {sale.endDate}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span>Orders: <strong>{sale.orders || 0}</strong></span>
+                      <span>Revenue: <strong>₹{(sale.revenue || 0).toLocaleString()}</strong></span>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {activeTab === "campaigns" && (
+            <motion.div
+              key="campaigns"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4"
+            >
+              {campaigns.map((campaign, index) => (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="pro-card rounded-xl p-5"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "p-3 rounded-xl",
+                        campaign.type === "email" ? "bg-info/10" : "bg-success/10"
+                      )}>
+                        <Mail className={cn(
+                          "w-6 h-6",
+                          campaign.type === "email" ? "text-info" : "text-success"
+                        )} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{campaign.name}</h3>
+                        <p className="text-sm text-muted-foreground capitalize">{campaign.type} Campaign</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-xs font-medium",
+                          statusConfig[campaign.status as keyof typeof statusConfig]?.bg,
+                          statusConfig[campaign.status as keyof typeof statusConfig]?.text
+                        )}
+                      >
+                        {statusConfig[campaign.status as keyof typeof statusConfig]?.label || 'Active'}
+                      </span>
+                      <button 
+                        onClick={() => handleDelete(campaign.id)}
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="p-3 rounded-xl bg-secondary/30 text-center">
+                      <p className="text-lg font-bold text-foreground">{(campaign.sent || 0).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Sent</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-secondary/30 text-center">
+                      <p className="text-lg font-bold text-foreground">{(campaign.opened || 0).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Opened</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-secondary/30 text-center">
+                      <p className="text-lg font-bold text-foreground">{(campaign.clicked || 0).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Clicked</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-secondary/30 text-center">
+                      <p className="text-lg font-bold text-foreground">₹{(campaign.revenue || 0).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Revenue</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Create Modal */}
       <AnimatePresence>
@@ -385,7 +421,9 @@ export function MarketingModule() {
               className="pro-card rounded-xl p-6 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">Create Coupon</h2>
+                <h2 className="text-xl font-bold text-foreground">
+                  Create {activeTab === 'coupons' ? 'Coupon' : activeTab === 'flash' ? 'Flash Sale' : 'Campaign'}
+                </h2>
                 <button
                   onClick={() => setShowCreateModal(false)}
                   className="p-2 rounded-lg hover:bg-secondary/50 transition-colors"
@@ -395,57 +433,108 @@ export function MarketingModule() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Coupon Code</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., SUMMER25"
-                    className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-mono uppercase"
-                  />
-                </div>
+                {activeTab === 'coupons' && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Coupon Code</label>
+                      <input
+                        type="text"
+                        value={formData.code}
+                        onChange={(e) => setFormData({...formData, code: e.target.value})}
+                        placeholder="e.g., SUMMER25"
+                        className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-mono uppercase"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Discount Value</label>
+                        <input
+                          type="text"
+                          value={formData.discount}
+                          onChange={(e) => setFormData({...formData, discount: e.target.value})}
+                          placeholder="25% or ₹50"
+                          className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Expiry Date</label>
+                        <input
+                          type="date"
+                          onChange={(e) => setFormData({...formData, expiresAt: e.target.value})}
+                          className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Discount Type</label>
-                    <select className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
-                      <option value="percentage">Percentage</option>
-                      <option value="fixed">Fixed Amount</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Discount Value</label>
-                    <input
-                      type="number"
-                      placeholder="25"
-                      className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                </div>
+                {activeTab === 'flash' && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Sale Name</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="Weekend Flash Sale"
+                        className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Discount</label>
+                        <input
+                          type="text"
+                          value={formData.discount}
+                          onChange={(e) => setFormData({...formData, discount: e.target.value})}
+                          placeholder="30% off"
+                          className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Product Count</label>
+                        <input
+                          type="number"
+                          onChange={(e) => setFormData({...formData, products: Number(e.target.value)})}
+                          className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Usage Limit</label>
-                    <input
-                      type="number"
-                      placeholder="100"
-                      className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Expiry Date</label>
-                    <input
-                      type="date"
-                      className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                </div>
+                {activeTab === 'campaigns' && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Campaign Name</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="New Year Sale"
+                        className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Campaign Type</label>
+                      <select 
+                        value={formData.type}
+                        onChange={(e) => setFormData({...formData, type: e.target.value})}
+                        className="w-full mt-1.5 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      >
+                        <option value="email">Email</option>
+                        <option value="sms">SMS</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-3 mt-6">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
-                <Button className="flex-1 rounded-xl">Create Coupon</Button>
+                <Button className="flex-1 rounded-xl" onClick={handleCreate}>Create</Button>
               </div>
             </motion.div>
           </motion.div>

@@ -288,5 +288,99 @@
       "comment": "Best keyboard I have ever used. The RGB lighting is beautiful!",
       "date": "3 days ago"
     }
+  ],
+  "coupons": [
+    {
+      "id": 1,
+      "code": "SUMMER25",
+      "discount": "25%",
+      "type": "percentage",
+      "usageLimit": 100,
+      "used": 67,
+      "expiresAt": "Jun 30, 2025",
+      "status": "active",
+      "revenue": 45000
+    },
+    {
+      "id": 2,
+      "code": "FLAT50",
+      "discount": "₹50",
+      "type": "fixed",
+      "usageLimit": 50,
+      "used": 42,
+      "expiresAt": "May 15, 2025",
+      "status": "active",
+      "revenue": 21000
+    },
+    {
+      "id": 3,
+      "code": "WELCOME10",
+      "discount": "10%",
+      "type": "percentage",
+      "usageLimit": 500,
+      "used": 234,
+      "expiresAt": "Dec 31, 2025",
+      "status": "active",
+      "revenue": 78000
+    },
+    {
+      "id": 4,
+      "code": "FLASH20",
+      "discount": "20%",
+      "type": "percentage",
+      "usageLimit": 200,
+      "used": 200,
+      "expiresAt": "Apr 1, 2025",
+      "status": "expired",
+      "revenue": 62000
+    }
+  ],
+  "flashSales": [
+    {
+      "id": 1,
+      "name": "Weekend Flash Sale",
+      "discount": "30% off",
+      "products": 24,
+      "startDate": "Jan 20, 2025",
+      "endDate": "Jan 22, 2025",
+      "status": "scheduled",
+      "revenue": 0,
+      "orders": 0
+    },
+    {
+      "id": 2,
+      "name": "Electronics Clearance",
+      "discount": "40% off",
+      "products": 12,
+      "startDate": "Jan 15, 2025",
+      "endDate": "Jan 18, 2025",
+      "status": "active",
+      "revenue": 156000,
+      "orders": 89
+    }
+  ],
+  "campaigns": [
+    {
+      "id": 1,
+      "name": "New Year Sale Campaign",
+      "type": "email",
+      "sent": 2500,
+      "opened": 1250,
+      "clicked": 375,
+      "status": "completed",
+      "revenue": 125000,
+      "conversions": 89
+    },
+    {
+      "id": 2,
+      "name": "Product Launch SMS",
+      "type": "sms",
+      "sent": 1800,
+      "opened": 1620,
+      "clicked": 486,
+      "status": "active",
+      "revenue": 98000,
+      "conversions": 67
+    }
   ]
 }
