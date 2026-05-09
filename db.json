@@ -302,17 +302,6 @@
       "revenue": 45000
     },
     {
-      "id": 2,
-      "code": "FLAT50",
-      "discount": "₹50",
-      "type": "fixed",
-      "usageLimit": 50,
-      "used": 42,
-      "expiresAt": "May 15, 2025",
-      "status": "active",
-      "revenue": 21000
-    },
-    {
       "id": 3,
       "code": "WELCOME10",
       "discount": "10%",
