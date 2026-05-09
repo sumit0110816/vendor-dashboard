@@ -16,6 +16,8 @@ import {
   Users,
   UserPlus,
   UserCheck,
+  Send,
+  ExternalLink,
 } from "lucide-react"
 import { Header } from "../header"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,20 @@ export function CustomersModule() {
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState<"customers" | "reviews" | "messages">("customers")
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [replyingTo, setReplyingTo] = useState<number | null>(null)
+  const [replyText, setReplyText] = useState("")
+  const [replies, setReplies] = useState<Record<number, string[]>>({})
+  const [messages, setMessages] = useState([
+    { id: 1, customer: "Sarah Johnson", avatar: "SJ", subject: "Order delivery query", text: "Hi, when will my order #ORD-2024-001 be delivered?", time: "2 hours ago", unread: true },
+    { id: 2, customer: "Mike Williams", avatar: "MW", subject: "Product return request", text: "I want to return the Smart Watch Pro. It has a scratch on the screen.", time: "5 hours ago", unread: true },
+    { id: 3, customer: "Emily Davis", avatar: "ED", subject: "Bulk order inquiry", text: "Do you offer discounts on bulk orders for the Mechanical Keyboard RGB?", time: "1 day ago", unread: false },
+  ])
+  const [msgReplyingTo, setMsgReplyingTo] = useState<number | null>(null)
+  const [msgReplyText, setMsgReplyText] = useState("")
+  const [msgReplies, setMsgReplies] = useState<Record<number, string[]>>({})
+  const [showOrdersModal, setShowOrdersModal] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -44,6 +60,29 @@ export function CustomersModule() {
       setLoading(false)
     })
   }, [])
+
+  const filteredCustomers = customers.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.location.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  const handleReviewReply = (reviewId: number) => {
+    if (!replyText.trim()) return
+    setReplies(prev => ({ ...prev, [reviewId]: [...(prev[reviewId] || []), replyText] }))
+    setReplyText("")
+    setReplyingTo(null)
+  }
+
+  const handleMsgReply = (msgId: number) => {
+    if (!msgReplyText.trim()) return
+    setMsgReplies(prev => ({ ...prev, [msgId]: [...(prev[msgId] || []), msgReplyText] }))
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, unread: false } : m))
+    setMsgReplyText("")
+    setMsgReplyingTo(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -112,14 +151,25 @@ export function CustomersModule() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search customers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name, email, location..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>
-              <Button variant="outline" className="gap-2 rounded-xl">
-                <Filter className="w-4 h-4" />
-                Filter
-              </Button>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="appearance-none pl-9 pr-8 py-2.5 rounded-xl border border-border bg-background hover:bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="vip">VIP</option>
+                </select>
+              </div>
             </div>
 
             {/* Customer List */}
@@ -149,7 +199,9 @@ export function CustomersModule() {
                     </tr>
                   </thead>
                   <tbody>
-                    {customers.map((customer, index) => (
+                    {filteredCustomers.length === 0 ? (
+                      <tr><td colSpan={6} className="py-12 text-center text-sm text-muted-foreground">No customers match your search.</td></tr>
+                    ) : filteredCustomers.map((customer, index) => (
                       <motion.tr
                         key={customer.id}
                         initial={{ opacity: 0, x: -20 }}
@@ -251,12 +303,38 @@ export function CustomersModule() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{review.comment}</p>
+
+                {/* Show existing replies */}
+                {replies[review.id]?.map((r, i) => (
+                  <div key={i} className="mt-3 ml-6 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <p className="text-xs font-medium text-primary mb-1">Your Reply</p>
+                    <p className="text-sm text-foreground">{r}</p>
+                  </div>
+                ))}
+
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                   <span className="text-xs text-muted-foreground">{review.date}</span>
-                  <Button variant="outline" size="sm" className="rounded-lg">
-                    Reply
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => { setReplyingTo(replyingTo === review.id ? null : review.id); setReplyText("") }}>
+                    {replyingTo === review.id ? "Cancel" : "Reply"}
                   </Button>
                 </div>
+
+                {replyingTo === review.id && (
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleReviewReply(review.id)}
+                      placeholder="Write your reply..."
+                      className="flex-1 px-4 py-2 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      autoFocus
+                    />
+                    <Button size="sm" className="rounded-xl gap-1" onClick={() => handleReviewReply(review.id)}>
+                      <Send className="w-3 h-3" /> Send
+                    </Button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </motion.div>
@@ -268,11 +346,71 @@ export function CustomersModule() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="pro-card rounded-xl p-8 text-center"
+            className="space-y-4"
           >
-            <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No Messages Yet</h3>
-            <p className="text-sm text-muted-foreground">Customer messages will appear here</p>
+            {messages.length === 0 ? (
+              <div className="pro-card rounded-xl p-8 text-center">
+                <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">No Messages Yet</h3>
+                <p className="text-sm text-muted-foreground">Customer messages will appear here</p>
+              </div>
+            ) : messages.map((msg, index) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={cn("pro-card rounded-xl p-5", msg.unread && "border-l-4 border-l-primary")}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-info flex items-center justify-center text-sm font-medium text-primary-foreground">
+                      {msg.avatar}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">{msg.customer}</p>
+                        {msg.unread && <span className="w-2 h-2 rounded-full bg-primary" />}
+                      </div>
+                      <p className="text-xs font-medium text-primary">{msg.subject}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{msg.time}</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{msg.text}</p>
+
+                {/* Show replies */}
+                {msgReplies[msg.id]?.map((r, i) => (
+                  <div key={i} className="mt-3 ml-6 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <p className="text-xs font-medium text-primary mb-1">You</p>
+                    <p className="text-sm text-foreground">{r}</p>
+                  </div>
+                ))}
+
+                <div className="flex justify-end mt-3 pt-3 border-t border-border">
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => { setMsgReplyingTo(msgReplyingTo === msg.id ? null : msg.id); setMsgReplyText("") }}>
+                    {msgReplyingTo === msg.id ? "Cancel" : "Reply"}
+                  </Button>
+                </div>
+
+                {msgReplyingTo === msg.id && (
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={msgReplyText}
+                      onChange={(e) => setMsgReplyText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleMsgReply(msg.id)}
+                      placeholder="Type your reply..."
+                      className="flex-1 px-4 py-2 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      autoFocus
+                    />
+                    <Button size="sm" className="rounded-xl gap-1" onClick={() => handleMsgReply(msg.id)}>
+                      <Send className="w-3 h-3" /> Send
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -354,15 +492,44 @@ export function CustomersModule() {
               </div>
 
               <div className="flex items-center gap-3 mt-6">
-                <Button variant="outline" className="flex-1 gap-2 rounded-xl">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2 rounded-xl"
+                  onClick={() => window.open(`mailto:${selectedCustomer.email}?subject=Hello from VendorHub&body=Hi ${selectedCustomer.name},`, '_blank')}
+                >
                   <Mail className="w-4 h-4" />
                   Email
                 </Button>
-                <Button className="flex-1 gap-2 rounded-xl">
+                <Button className="flex-1 gap-2 rounded-xl" onClick={() => setShowOrdersModal(!showOrdersModal)}>
                   <ShoppingBag className="w-4 h-4" />
-                  View Orders
+                  {showOrdersModal ? "Back" : "View Orders"}
                 </Button>
               </div>
+
+              {showOrdersModal && (
+                <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Order History</h4>
+                  {[
+                    { id: "ORD-2024-001", date: "Jan 15, 2024", total: 457, status: "delivered" },
+                    { id: "ORD-2024-005", date: "Jan 10, 2024", total: 289, status: "shipped" },
+                    { id: "ORD-2024-009", date: "Dec 28, 2023", total: 134, status: "delivered" },
+                  ].map(order => (
+                    <div key={order.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{order.id}</p>
+                        <p className="text-xs text-muted-foreground">{order.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-foreground">₹{order.total.toFixed(2)}</p>
+                        <span className={cn(
+                          "text-xs font-medium",
+                          order.status === "delivered" ? "text-success" : "text-primary"
+                        )}>{order.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

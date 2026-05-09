@@ -39,6 +39,8 @@ export function OrdersModule() {
   const [orders, setOrders] = useState<any[]>([])
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [paymentFilter, setPaymentFilter] = useState<string>("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -50,8 +52,41 @@ export function OrdersModule() {
       })
   }, [])
 
-  const filteredOrders =
-    filterStatus === "all" ? orders : orders.filter((o) => o.status === filterStatus)
+  const filteredOrders = orders.filter((o) => {
+    const matchesStatus = filterStatus === "all" || o.status === filterStatus;
+    const matchesPayment = paymentFilter === "all" || o.paymentStatus === paymentFilter;
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+        o.id.toLowerCase().includes(searchLower) ||
+        o.customer.name.toLowerCase().includes(searchLower) ||
+        o.customer.email.toLowerCase().includes(searchLower);
+    return matchesStatus && matchesPayment && matchesSearch;
+  });
+
+  const handleExport = () => {
+    const csvContent = [
+      ["Order ID", "Date", "Customer Name", "Customer Email", "Items Count", "Total", "Status", "Payment Status"].join(","),
+      ...filteredOrders.map(o => [
+        o.id, 
+        o.date, 
+        `"${o.customer.name}"`, 
+        o.customer.email, 
+        o.items?.length || 0, 
+        o.total, 
+        o.status, 
+        o.paymentStatus
+      ].join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "orders_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   return (
     <div className="space-y-6">
@@ -92,18 +127,29 @@ export function OrdersModule() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by order ID, customer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by order ID, customer name, email..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
           />
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 rounded-xl">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
-          <Button variant="outline" className="gap-2 rounded-xl">
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="appearance-none pl-9 pr-8 py-2 rounded-xl border border-border bg-background hover:bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer"
+            >
+              <option value="all">Payment: All</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+          <Button variant="outline" className="gap-2 rounded-xl" onClick={handleExport}>
             <FileText className="w-4 h-4" />
-            Export
+            Export CSV
           </Button>
         </div>
       </motion.div>
